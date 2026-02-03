@@ -31,8 +31,9 @@ pub fn aexpr_to_skip_batch_predicate(
 }
 
 fn does_dtype_have_sufficient_order(dtype: &DataType) -> bool {
-    // Rules surrounding floats are really complicated. I should get around to that.
-    !dtype.is_nested() && !dtype.is_float() && !dtype.is_null() && !dtype.is_categorical()
+    // Float types are supported because is_stat_defined() checks for NaN values.
+    // If min/max stats contain NaN, they're treated as undefined (batch won't be skipped).
+    !dtype.is_nested() && !dtype.is_null() && !dtype.is_categorical()
 }
 
 fn is_stat_defined(
@@ -40,13 +41,14 @@ fn is_stat_defined(
     dtype: &DataType,
     arena: &mut Arena<AExpr>,
 ) -> AExprBuilder {
-    let mut expr = expr.into_aexpr_builder();
-    expr = expr.is_not_null(arena);
+    let expr = expr.into_aexpr_builder();
+    let is_not_null = expr.is_not_null(arena);
     if dtype.is_float() {
         let is_not_nan = expr.is_not_nan(arena);
-        expr = expr.and(is_not_nan, arena);
+        is_not_null.and(is_not_nan, arena)
+    } else {
+        is_not_null
     }
-    expr
 }
 
 #[recursive::recursive]

@@ -918,7 +918,6 @@ endpoint_url = http://127.0.0.1:54321
         pl.DataFrame({"x": 1}).write_delta("s3://.../...", mode="append")
 
 
-# TODO: uncomment dtype when fixed
 @pytest.mark.parametrize(
     "expr",
     [
@@ -933,10 +932,10 @@ endpoint_url = http://127.0.0.1:54321
         pl.col.int < 3,
         pl.col.int.is_null(),
         (pl.col.int < 2) & (pl.col.int.is_not_null()),
-        # Float ## see github issue #26238
-        # pl.col.float == 2.0,
-        # pl.col.float <= 2.0,
-        # pl.col.float < 3.0,
+        # Float
+        pl.col.float == 2.0,
+        pl.col.float <= 2.0,
+        pl.col.float < 3.0,
         pl.col.float.is_null(),
         # mixed
         (pl.col.int == 2) & (pl.col.float.is_not_null()),
