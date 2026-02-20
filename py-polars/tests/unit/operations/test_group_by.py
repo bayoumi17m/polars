@@ -522,6 +522,78 @@ def test_group_by_varying_quantile_20951() -> None:
     )
     assert_frame_equal(result_lazy, expected)
 
+    # Float data with non-default quantile method
+    df_float = pl.DataFrame(
+        {
+            "group": [1, 1, 1, 2, 2, 2],
+            "value": [1.0, 2.0, 3.0, 10.0, 20.0, 30.0],
+            "q": [0.5, 0.5, 0.5, 0.0, 0.0, 0.0],
+        }
+    )
+    result = df_float.group_by("group", maintain_order=True).agg(
+        pl.col("value").quantile(pl.col("q").first(), interpolation="lower")
+    )
+    expected = pl.DataFrame(
+        {
+            "group": [1, 2],
+            "value": [2.0, 10.0],
+        }
+    )
+    assert_frame_equal(result, expected)
+
+    # Null quantile values produce null output
+    df_null_q = pl.DataFrame(
+        {
+            "group": [1, 1, 2, 2],
+            "value": [10, 20, 30, 40],
+            "q": [0.5, 0.5, None, None],
+        },
+        schema={"group": pl.Int64, "value": pl.Int64, "q": pl.Float64},
+    )
+    result = df_null_q.group_by("group", maintain_order=True).agg(
+        pl.col("value").quantile(pl.col("q").first())
+    )
+    assert result["value"][0] == 20.0  # nearest interpolation (default)
+    assert result["value"][1] is None
+
+    # Single-element groups
+    df_single = pl.DataFrame(
+        {
+            "group": [1, 2, 3],
+            "value": [100, 200, 300],
+            "q": [0.0, 0.5, 1.0],
+        }
+    )
+    result = df_single.group_by("group", maintain_order=True).agg(
+        pl.col("value").quantile(pl.col("q").first())
+    )
+    expected = pl.DataFrame(
+        {
+            "group": [1, 2, 3],
+            "value": [100.0, 200.0, 300.0],
+        }
+    )
+    assert_frame_equal(result, expected)
+
+    # Null data values within groups
+    df_null_data = pl.DataFrame(
+        {
+            "group": [1, 1, 1, 2, 2, 2],
+            "value": [1, None, 3, None, 20, 30],
+            "q": [0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
+        }
+    )
+    result = df_null_data.group_by("group", maintain_order=True).agg(
+        pl.col("value").quantile(pl.col("q").first())
+    )
+    expected = pl.DataFrame(
+        {
+            "group": [1, 2],
+            "value": [1.0, 30.0],
+        }
+    )
+    assert_frame_equal(result, expected)
+
 
 def test_group_by_args() -> None:
     df = pl.DataFrame(

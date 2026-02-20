@@ -367,6 +367,13 @@ where
     K: PolarsNumericType,
     <K as datatypes::PolarsNumericType>::Native: num_traits::Float + quantile_filter::SealedRolling,
 {
+    debug_assert_eq!(
+        quantiles.len(),
+        groups.len(),
+        "quantiles length ({}) must match groups length ({})",
+        quantiles.len(),
+        groups.len()
+    );
     match groups {
         GroupsType::Idx(groups) => {
             let ca = ca.rechunk();
@@ -380,6 +387,8 @@ where
                     return None;
                 }
                 let take = { ca.take_unchecked(idx) };
+                // SAFETY: _quantile only returns Err for out-of-range quantiles,
+                // which are filtered by the range check above.
                 take._quantile(quantile, method).unwrap_unchecked()
             })
         },
@@ -395,6 +404,8 @@ where
                     1 => ca.get(first as usize).map(|v| NumCast::from(v).unwrap()),
                     _ => {
                         let arr_group = _slice_from_offsets(ca, first, len);
+                        // SAFETY: _quantile only returns Err for out-of-range quantiles,
+                        // which are filtered by the range check above.
                         arr_group
                             ._quantile(quantile, method)
                             .unwrap_unchecked()

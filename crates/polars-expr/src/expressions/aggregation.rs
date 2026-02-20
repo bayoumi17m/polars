@@ -607,6 +607,8 @@ impl PhysicalExpr for AggQuantileExpr {
                 // Per-group quantile values.
                 let c = c.cast(&DataType::Float64)?;
                 let ca = c.f64()?;
+                // Null quantile values are mapped to NaN, which fails the range check
+                // in agg_varying_quantile_generic and produces null output for that group.
                 let quantiles: Vec<f64> = ca.iter().map(|v| v.unwrap_or(f64::NAN)).collect();
 
                 if let AggState::LiteralScalar(c) = &mut ac.state {
@@ -633,7 +635,8 @@ impl PhysicalExpr for AggQuantileExpr {
             },
             _ => {
                 polars_bail!(ComputeError:
-                    "quantile expression in group_by must produce a scalar per group"
+                    "quantile expression in group_by must produce a scalar per group; \
+                    use .first() or another aggregation to reduce to a scalar"
                 );
             },
         }
