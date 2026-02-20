@@ -493,6 +493,36 @@ def test_group_by_quantile_time() -> None:
     assert_frame_equal(result.collect(), expected)
 
 
+def test_group_by_varying_quantile_20951() -> None:
+    # https://github.com/pola-rs/polars/issues/20951
+    # Quantile parameter that varies per group should apply each group's quantile
+    df = pl.DataFrame(
+        {
+            "value": [1, 2, 1, 2],
+            "quantile": [0, 0, 1, 1],
+        }
+    )
+    result = df.group_by(pl.col.quantile, maintain_order=True).agg(
+        pl.col.value.quantile(pl.col.quantile.first())
+    )
+    expected = pl.DataFrame(
+        {
+            "quantile": [0, 1],
+            "value": [1.0, 2.0],
+        }
+    )
+    assert_frame_equal(result, expected)
+
+    # Also test with lazy
+    result_lazy = (
+        df.lazy()
+        .group_by(pl.col.quantile, maintain_order=True)
+        .agg(pl.col.value.quantile(pl.col.quantile.first()))
+        .collect()
+    )
+    assert_frame_equal(result_lazy, expected)
+
+
 def test_group_by_args() -> None:
     df = pl.DataFrame(
         {
